@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8" />
+        <title>Laporan Modal Apps</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="js/jquery-3.4.1.min.js"></script>
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <style>
+        .headerKu{
+            
+            height:95vh;  
+            overflow-y:auto;
+            width: 100%;
+        }
+
+        .contentKu{
+            background-color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+    </style>
+    </head>
+    <body>
+        
+        <div class="container-fluid mt-2">
+            <div class="headerKu">
+                <div class="contentKu p-2 w-100">
+                    <div class="row w-100">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary" onclick="openModal('')">
+                                Tambah Laporan
+                            </button>
+                        </div>
+                        <div class="col-12 mt-1">
+                            <div class="w-100" id="alertContainer"></div>
+                        </div>
+                    </div>
+                    
+                    
+                </div>
+                
+                <div class="row w-100" id="listResult">
+                    
+                </div>
+            </div>
+            
+            
+        </div>
+
+        <div class="modal fade" id="laporanModal" tabindex="-1" aria-labelledby="addLaporan" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header p-2">
+                    <h5 class="modal-title" id="titleForm">Tambah Laporan</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    </div>
+                    <div class="modal-body p-2">
+                        <input type="hidden" id="idLaporan" value="">
+                        <div class="form-group row mb-1">
+                            <label for="modalAwal" class="col-12 col-form-label py-1">Modal awal</label>
+                            <div class="col-12">
+                                <input type="number" class="form-control" id="modalAwal" value="1350000">
+                            </div>
+                            <div class="col-12">
+                                <small class="text-danger" id="lblErrorModalAwal"></small>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-1">
+                            <label for="laporanDate" class="col-12 col-form-label py-1">Tanggal</label>
+                            <div class="col-12">
+                                <input class="form-control" value="2011-08-19" type="date"  id="laporanDate">
+                            </div>
+                            <div class="col-12">
+                                <small class="text-danger" id="lblErrorDate"></small>
+                            </div>
+                        </div>
+                        <div class="form-group row mb-1">
+                            <label for="cash" class="col-12 col-form-label py-1">Cash</label>
+                            <div class="col-12">
+                                <input type="number" class="form-control" id="cash">
+                            </div>
+                            <div class="col-12">
+                                <small class="text-danger" id="lblErrorCash"></small>
+                            </div>
+                            
+                        </div>
+                        <div class="form-group row mb-1">
+                            <label for="cashless" class="col-12 col-form-label py-1">Cashless</label>
+                            <div class="col-12">
+                                <input type="number" class="form-control" id="cashless">
+                            </div>
+                            <div class="col-12">
+                                <small class="text-danger" id="lblErrorCashless"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" id="btnSimpan">Simpan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+<script>    
+    let idbSupported = false;
+    let dbLaporanDatabase;    
+    let dbName = "LaporanDB";
+    let dbVersion = 1;
+
+    if ("indexedDB" in window) idbSupported = true;
+    else alert("Browser anda tidak support indexedDB")
+    const formatRupiah = (bilangan) => {
+        if (bilangan == undefined) return
+        else {
+            let number_string = bilangan.toString(),
+                sisa 	= number_string.length % 3,
+                rupiah 	= number_string.substr(0, sisa),
+                ribuan 	= number_string.substr(sisa).match(/\d{3}/g);
+                
+            if (ribuan) {
+                separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+            return rupiah;
+        }        
+    }
+    function validasi() {
+        let date = $("#laporanDate").val();
+        let cash = $("#cash").val();
+        let cashless = $("#cashless").val();
+        let modalAwal = $('#modalAwal').val();
+        let lblErrorDate = $('#lblErrorDate')
+        let lblErrorCash = $('#lblErrorCash')
+        let lblErrorCashless = $('#lblErrorCashless')
+        let lblErrormodalAwal = $("#lblErrorModalAwal")
+
+        if(date == "" ) lblErrorDate.text('Harus diisi')
+        else lblErrorDate.text('')
+
+        if (cash == "" ) lblErrorCash.text("Harus diisi")
+        else if (typeof parseInt(cash.trim()) != 'number') lblErrorCash.text("Masukan angka")
+        else lblErrorCash.text('');
+
+        if (cashless == "" ) lblErrorCashless.text("Harus diisi")
+        else if (typeof parseInt(cashless.trim()) != 'number') lblErrorCashless.text("Masukan angka")
+        else lblErrorCashless.text('');
+
+        if (modalAwal == "" ) lblErrormodalAwal.text("Harus diisi")
+        else if (typeof parseInt(modalAwal.trim()) != 'number') lblErrormodalAwal.text("Masukan angka")
+        else lblErrormodalAwal.text('');
+
+    }
+    if (document.readyState = "loading") {
+        if (idbSupported) {
+            let request = indexedDB.open(dbName, dbVersion);
+            request.onupgradeneeded = function(e) {
+                console.log("running onupgradeneeded");
+                let thisDB = e.target.result;
+                
+                if(!thisDB.objectStoreNames.contains("laporan")) {
+                    thisDB.createObjectStore("laporan", {keyPath : "id", autoIncrement : true});
+                }
+            }
+            request.onsuccess = (e) => {
+                dbLaporanDatabase = request.result;
+                readAll()
+            }
+            request.onerror = function(e) {
+                console.log("Error");
+                console.dir(e);
+            }            
+        }
+    }
+    
+    function openAlert(msg) {
+        $('#alertContainer').html(`
+            <div class="alert alert-success alert-dismissible fade show mb-0" role="alert" id="buttonAlert">
+                <strong>Berhasil!</strong> ${msg}.
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+            </div>`)
+
+    }
+    function openModal(id) {
+        if (id != "") {
+            $('#titleForm').text("Edit Laporan")
+            getLaporan(id)
+            $('#laporanModal').modal('show');
+        } else {
+            $('#idLaporan').val('')
+            $('#cash').val('')
+            $('#cashless').val('')
+            $('#titleForm').text("Tambah Laporan")
+            $("#modalAwal").val("1350000")
+            let date = new Date();
+            let str = `${date.getFullYear()}-${(date.getMonth() > 8) ? parseInt(date.getMonth())+1 : "0"+(parseInt(date.getMonth())+1)}-${date.getDate()}`;
+            document.getElementById('laporanDate').value = str
+            $('#laporanModal').modal('show');
+        }
+        
+        
+         //or  $('#IDModal').modal('hide');
+    }
+    $('#btnSimpan').click(function(e) {
+        let lblErrorDate = $('#lblErrorDate')
+        let lblErrorCash = $('#lblErrorCash')
+        let lblErrorCashless = $('#lblErrorCashless')
+        let lblErrormodalAwal = $("#lblErrorModalAwal")
+        e.preventDefault();
+        validasi()
+        if (lblErrorCash.text() == "" && lblErrorCashless.text() == "" && lblErrorDate.text() == "" && lblErrormodalAwal.text() == "") {
+            if ($('#idLaporan').val() == "") {
+            addLaporan();
+            readAll();
+            } else editLaporan($('#idLaporan').val());
+            $('#laporanModal').modal('toggle'); //or  $('#IDModal').modal('hide');
+        }else console.log('not valid');
+        return false;
+    });
+
+    function editLaporan(id) {
+        let date = $("#laporanDate").val();
+        let cash = parseInt($("#cash").val());
+        let cashless = parseInt($("#cashless").val());
+        let modal = parseInt($("#modalAwal").val())
+        let pendapatan = parseInt(cash) + parseInt(cashless) - modal;
+        let transaction = dbLaporanDatabase.transaction(["laporan"], "readwrite");
+        let objectStore = transaction.objectStore("laporan");
+        let data = {id, date, cash, cashless, pendapatan, modal}
+        let req = objectStore.put(data)
+
+        req.onerror = function(e) {
+            console.log("Error",e.target.error.name);
+        }
+
+        req.onsuccess = function(e) {
+            openAlert("mengedit laporan.")
+            readAll()
+        }
+        
+
+    }
+    function addLaporan()  {
+        let date = $("#laporanDate").val();
+        let cash = parseInt($("#cash").val());
+        let cashless = parseInt($("#cashless").val());
+        let modal = parseInt($("#modalAwal").val())
+        let pendapatan = parseInt(cash) + parseInt(cashless) - modal;
+        let transaction = dbLaporanDatabase.transaction(["laporan"], "readwrite")
+        let store = transaction.objectStore("laporan");
+        let id = Math.random().toString(36).substring(2, 9);
+        let data = {id, date, cash, cashless, pendapatan, modal}
+        let req = store.add(data)
+
+        req.onerror = function(e) {
+            console.log("Error",e.target.error.name);
+        }
+
+        req.onsuccess = function(e) {
+            openAlert("menambahkan laporan.")            
+        }
+    }
+    function remove(id) {
+        if (confirm("Hapus")) {
+            let request = dbLaporanDatabase.transaction(["laporan"], "readwrite").objectStore("laporan")
+                .delete(id);
+                
+            request.onsuccess = function(event) {
+                openAlert("Menghapus laporan")
+                readAll()
+            };
+        }
+    }
+
+    function getLaporan(id) {
+        let transaction = dbLaporanDatabase.transaction(["laporan"]);
+        let objectStore = transaction.objectStore("laporan");
+        let request = objectStore.get(id);
+            
+            request.onerror = function(event) {
+                alert("Unable to retrieve daa from database!");
+            };
+            
+            request.onsuccess = function(event) {
+                if(request.result) {
+                    let date = new Date(request.result.date);
+                    let str = `${date.getFullYear()}-${(date.getMonth() > 8) ? parseInt(date.getMonth())+1 : "0"+(parseInt(date.getMonth())+1)}-${date.getDate()}`;
+                    document.getElementById('laporanDate').value = str
+                    $('#idLaporan').val(request.result.id)
+                    $("#cash").val(request.result.cash);
+                    $("#cashless").val(request.result.cashless);
+                    $("#modalAwal").val(request.result.modal);
+                }
+            }
+    }
+
+    function readAll() {
+        let objectStore = dbLaporanDatabase.transaction("laporan").objectStore("laporan");
+        let res = [];
+        objectStore.openCursor().onsuccess = function(event) {
+            
+            let cursor = event.target.result;
+
+            if (!!cursor == false) {
+                document.getElementById('listResult').innerHTML = ""
+                res.sort((a,b) => Number(new Date(a.date)) - Number(new Date(b.date)));
+                res.forEach(e => {
+                    let cardStr = `
+                        <div class="card">
+                            <div class="card-header px-1 py-1">
+                                <div class="d-flex">
+                                    <div class="mr-auto ml-1">
+                                        <p class="m-0">${e.date}</p>
+                                    </div>
+                                    <div class="mr-1 ml-1">
+                                        <button class="btn btn-link btn-sm p-0" onclick="openModal('${e.id}')">Edit</button>
+                                    </div>
+                                    <div class="mr-1">
+                                        <button class="btn btn-link btn-sm p-0" onclick="remove('${e.id}')">Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body py-0 px-1 pb-2">
+                                <div class="d-flex justify-content-between" style="height: 20px;">
+                                    <p class="card-text">Cash</p>
+                                    <p class="card-text">${formatRupiah(e.cash)}</p>
+                                </div>
+                                <div class="d-flex justify-content-between" style="height: 20px;">
+                                    <p class="card-text">Cashless</p>
+                                    <p class="card-text">${formatRupiah(e.cashless)}</p>
+                                </div>
+                                <div class="d-flex justify-content-between" style="height: 20px;">
+                                    <p class="card-text">Total</p>
+                                    <p class="card-text text-danger">${formatRupiah(parseInt(e.cash) + parseInt(e.cashless))}</p>
+                                </div>
+                                <div class="d-flex justify-content-between" style="height: 20px;">
+                                    <p class="card-text">Modal</p>
+                                    <p class="card-text">${formatRupiah(e.modal)}</p>
+                                </div>
+                                <div class="d-flex justify-content-between" style="height: 20px;">
+                                    <p class="card-text">Cash akhir</p>
+                                    <p class="card-text">${formatRupiah(e.modal - e.cashless)}</p>
+                                </div>
+                                <div class="d-flex justify-content-between" style="height: 20px;">
+                                    <p class="card-text">Pendapatan</p>
+                                    <p class="card-text">${formatRupiah(e.pendapatan)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                let divCol = document.createElement('div');
+                divCol.className = "col-xs-12 col-12 mt-2"
+                divCol.innerHTML = cardStr;
+                document.getElementById('listResult').appendChild(divCol)
+            })
+                return
+            } 
+
+            res.push(cursor.value)
+            cursor.continue()
+            
+        };
+        
+    }
+
+</script>
+
+<!--      
+    function read() {
+        var transaction = db.transaction(["employee"]);
+        var objectStore = transaction.objectStore("employee");
+        var request = objectStore.get("00-03");
+            
+            request.onerror = function(event) {
+                alert("Unable to retrieve daa from database!");
+            };
+            
+            request.onsuccess = function(event) {
+               // Do something with the request.result!
+               if(request.result) {
+                  console.log(request.result);
+               } else {
+                  alert("Kenny couldn't be found in your database!");
+               }
+            };
+         }
+         
+         function readAll() {
+            var objectStore = db.transaction("employee").objectStore("employee");
+            
+            objectStore.openCursor().onsuccess = function(event) {
+               var cursor = event.target.result;
+               
+               if (cursor) {
+                  console.log(cursor.value);
+                  cursor.continue();
+               } else {
+                  alert("No more entries!");
+               }
+            };
+         }
+         
+         function add() {
+            var request = db.transaction(["employee"], "readwrite")
+            .objectStore("employee")
+            .add({ id: "00-03", name: "Kenny", age: 19, email: "kenny@planet.org" });
+            
+            request.onsuccess = function(event) {
+               alert("Kenny has been added to your database.");
+            };
+            
+            request.onerror = function(event) {
+               alert("Unable to add data\r\nKenny is aready exist in your database! ");
+            }
+         }
+         
+          -->
